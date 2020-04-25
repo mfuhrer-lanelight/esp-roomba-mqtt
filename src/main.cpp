@@ -63,6 +63,9 @@ bool OTAStarted;
 
 // MQTT setup
 PubSubClient mqttClient(wifiClient);
+const char *commandTopic = MQTT_COMMAND_TOPIC;
+const char *stateTopic = MQTT_STATE_TOPIC;
+const char *configTopic = MQTT_CONFIG_TOPIC;
 
 void wakeup() {
   DLOG("Wakeup Roomba\n");
@@ -144,28 +147,31 @@ bool performCommand(const char *cmdchar) {
   return true;
 }
 
-char* getEntityID() {
-  // build entity_id
+char* getMAC(const char* divider = "") {
   byte MAC[6];
   WiFi.macAddress(MAC);
-  char MACc[30];
-  sprintf(MACc, "%02X%02X%02X%02X%02X%02X", MAC[0], MAC[1], MAC[2], MAC[3], MAC[4], MAC[5]);
-  char entityID[50];
-  sprintf(entityID, "%s%s", MQTT_IDPREFIX, MACc);
+  static char MACc[30];
+  sprintf(MACc, "%02X%s%02X%s%02X%s%02X%s%02X%s%02X", MAC[0], divider, MAC[1], divider, MAC[2], divider, MAC[3], divider, MAC[4], divider, MAC[5]);
+  return strlwr(MACc);
+}
+
+char* getEntityID() {
+  char entityID[100];
+  sprintf(entityID, "%s%s", MQTT_IDPREFIX, getMAC());
   // avoid confusions with lower/upper case differences in IDs
   return strlwr(entityID);
 }
 
-char* getMQTTTopic(char* topic) {
+char* getMQTTTopic(const char* topic) {
   // build mqtt target topic
-  char mqttTopic[200];
+  static char mqttTopic[200];
   sprintf(mqttTopic, "%s%s%s%s", MQTT_TOPIC_BASE, getEntityID(), MQTT_DIVIDER, topic);
   return mqttTopic;
 }
 
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
   DLOG("Received mqtt callback for topic %s\n", topic);
-  if (strcmp(getMQTTTopic(MQTT_COMMAND_TOPIC), topic) == 0) {
+  if (strcmp(getMQTTTopic(commandTopic), topic) == 0) {
     // turn payload into a null terminated string
     char *cmd = (char *)malloc(length + 1);
     memcpy(cmd, payload, length);
@@ -270,7 +276,7 @@ void sleepIfNecessary() {
       root["charge"] = 0;
       String jsonStr;
       serializeJson(root, jsonStr);
-      mqttClient.publish(getMQTTTopic(MQTT_STATE_TOPIC), jsonStr.c_str(), true);
+      mqttClient.publish(getMQTTTopic(stateTopic), jsonStr.c_str(), true);
     }
     delay(200);
 
@@ -401,7 +407,7 @@ void setup() {
   #endif
 
   // Learn locate song
-  roomba.fullMode();
+  roomba.safeMode();
   byte locateSong0[18] = {55, 32, 55, 32, 55, 32, 51, 24, 58, 8, 55, 32, 51, 24, 58, 8, 55, 64};
   byte locateSong1[18] = {62, 32, 62, 32, 62, 32, 63, 24, 58, 8, 54, 32, 51, 24, 58, 8, 55, 64};
   byte locateSong2[24] = {67, 32, 55, 24, 55, 8, 67, 32, 66, 24, 65, 8, 64, 8, 63, 8, 64, 16, 30, 16, 56, 16, 61, 32};
@@ -425,7 +431,7 @@ void reconnect() {
   // Attempt to connect
   if (mqttClient.connect(HOSTNAME, MQTT_USER, MQTT_PASSWORD)) {
     DLOG("MQTT connected\n");
-    mqttClient.subscribe(getMQTTTopic(MQTT_COMMAND_TOPIC));
+    mqttClient.subscribe(getMQTTTopic(commandTopic));
   } else {
     DLOG("MQTT failed rc=%d try again in 5 seconds\n", mqttClient.state());
   }
@@ -437,26 +443,30 @@ void sendConfig() {
     return;
   }
   StaticJsonDocument<500> root;
-  root["name"] = getEntityID();
+  root["name"] = String("Roomba ") + getMAC();
   root["unique_id"] = getEntityID();
   root["schema"] = "state";
   char baseTopic[200];
   sprintf(baseTopic, "%s%s", MQTT_TOPIC_BASE, getEntityID());
   root["~"] = baseTopic;
-  root["stat_t"] = String("~/") + MQTT_STATE_TOPIC;
-  root["cmd_t"] = String("~/") + MQTT_COMMAND_TOPIC;
-  root["send_cmd_t"] = String("~/") + MQTT_COMMAND_TOPIC;
-  root["json_attr_t"] = String("~/") + MQTT_STATE_TOPIC;
+  root["stat_t"] = String("~/") + stateTopic;
+  root["cmd_t"] = String("~/") + commandTopic;
+  root["send_cmd_t"] = String("~/") + commandTopic;
+  root["json_attr_t"] = String("~/") + stateTopic;
   root["sup_feat"][0] = "start";
   root["sup_feat"][1] = "stop";
   root["sup_feat"][2] = "pause";
   root["sup_feat"][3] = "return_home";
   root["sup_feat"][4] = "locate";
   root["sup_feat"][5] = "clean_spot";
+  root["dev"]["name"] = String("Roomba ") + getMAC();
+  root["dev"]["ids"][0] = getEntityID();
+  root["dev"]["mf"] = "iRobot";
+  root["dev"]["mdl"] = ROOMBA_MODEL;
   String jsonStr;
   serializeJson(root, jsonStr);
   DLOG("Reporting config: %s\n", jsonStr.c_str());
-  mqttClient.publish(getMQTTTopic(MQTT_CONFIG_TOPIC), jsonStr.c_str());
+  mqttClient.publish(getMQTTTopic(configTopic), jsonStr.c_str());
 }
 
 void sendStatus() {
@@ -486,7 +496,7 @@ void sendStatus() {
   String jsonStr;
   serializeJson(root, jsonStr);
   DLOG("Reporting status: %s\n", jsonStr.c_str());
-  mqttClient.publish(getMQTTTopic(MQTT_STATE_TOPIC), jsonStr.c_str());
+  mqttClient.publish(getMQTTTopic(stateTopic), jsonStr.c_str());
 }
 
 int lastStateMsgTime = 0;

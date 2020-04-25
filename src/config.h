@@ -8,8 +8,10 @@
 //#define ENABLE_ADC_SLEEP
 
 // to be adjusted by user
-#define MQTT_SERVER "10.0.0.2"
+#define MQTT_SERVER "homeassistant.your.domain"
 #define MQTT_USER "roomba"
+// define your Roomba model, e.g. "780"
+#define ROOMBA_MODEL "Roomba 780"
 
 // Only change if you know what you're doing!
 #define MQTT_DISCOVERY "homeassistant"
