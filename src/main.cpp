@@ -155,9 +155,9 @@ char* getMAC(const char* divider = "") {
   return strlwr(MACc);
 }
 
-char* getEntityID() {
-  char entityID[100];
-  sprintf(entityID, "%s%s", MQTT_IDPREFIX, getMAC());
+char* getEntityID(const char* prefix = MQTT_IDPREFIX) {
+  static char entityID[100];
+  sprintf(entityID, "%s%s", prefix, getMAC());
   // avoid confusions with lower/upper case differences in IDs
   return strlwr(entityID);
 }
@@ -385,7 +385,7 @@ void setup() {
   sleepIfNecessary();
 
   // Set Hostname.
-  String hostname(HOSTNAME);
+  String hostname(getEntityID(HOSTNAME_PREFIX));
   WiFi.hostname(hostname);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
@@ -429,7 +429,7 @@ void setup() {
 void reconnect() {
   DLOG("Attempting MQTT connection...\n");
   // Attempt to connect
-  if (mqttClient.connect(HOSTNAME, MQTT_USER, MQTT_PASSWORD)) {
+  if (mqttClient.connect(getEntityID(HOSTNAME_PREFIX), MQTT_USER, MQTT_PASSWORD)) {
     DLOG("MQTT connected\n");
     mqttClient.subscribe(getMQTTTopic(commandTopic));
   } else {
