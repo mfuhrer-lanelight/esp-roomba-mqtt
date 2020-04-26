@@ -1,6 +1,5 @@
 #include "secrets.h"
 
-#define HOSTNAME "roomba" // e.g. roomba.local
 #define BRC_PIN 14
 #define ROOMBA_650_SLEEP_FIX 1
 
@@ -8,12 +7,14 @@
 //#define ENABLE_ADC_SLEEP
 
 // to be adjusted by user
+// define your MQTT server either by hostname or IP address
 #define MQTT_SERVER "homeassistant.your.domain"
 #define MQTT_USER "roomba"
 // define your Roomba model, e.g. "780"
 #define ROOMBA_MODEL "Roomba 780"
 
 // Only change if you know what you're doing!
+#define HOSTNAME_PREFIX "roomba-"
 #define MQTT_DISCOVERY "homeassistant"
 #define MQTT_DEVICE_CLASS "vacuum"
 #define MQTT_DIVIDER "/"
