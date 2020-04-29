@@ -415,7 +415,7 @@ void setup() {
   ArduinoOTA.begin();
   ArduinoOTA.onStart(onOTAStart);
 
-  mqttClient.setServer(MQTT_SERVER, 1883);
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
 
   #if LOGGING

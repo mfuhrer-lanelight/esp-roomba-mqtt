@@ -4,6 +4,7 @@
 
 // define your MQTT server either by hostname or IP address
 #define MQTT_SERVER "homeassistant.your.domain"
+#define MQTT_PORT 1883
 #define MQTT_USER "roomba"
 #define MQTT_PASSWORD "mysecurepassword"
 
