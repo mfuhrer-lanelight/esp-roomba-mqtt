@@ -97,6 +97,33 @@ void wakeOffDock() {
   Serial.write(130); // Passive mode
 }
 
+void playSong(const uint8_t *notes, int len) {
+  roomba.safeMode();
+  delay(50);
+  int chunkNum = ceil(len / 32.0);
+  for (int i = 0; i < chunkNum; i++) {
+    int first = i * 32 * sizeof(uint8_t);
+    int length = i == chunkNum-1? len - i*32 : 32;
+    length *= sizeof(uint8_t);
+    uint8_t *chunk = (uint8_t*)malloc(len);
+    memcpy(chunk, notes + first, length);
+    int duration = 0;
+    for (int j = 0; j < length; j++) {
+        duration += (j + 1) % 2 == 0 ? chunk[j] : 0;
+    }
+    int ms = duration/64 * 1000 + 10;
+    roomba.song(0, chunk, length);
+    delay(50);
+    roomba.playSong(0);
+    delay(ms);
+  }
+}
+
+void playLocateSong() {
+  const uint8_t notes[] = LOCATESONG;
+  playSong(notes, sizeof(notes));
+}
+
 bool performCommand(const char *cmdchar) {
   wakeup();
 
@@ -128,15 +155,7 @@ bool performCommand(const char *cmdchar) {
     roomba.spot();
   } else if (cmd == "locate") {
     DLOG("Playing song #0\n");
-    roomba.safeMode();
-    delay(50);
-    roomba.playSong(0);
-    delay(4000);
-    roomba.playSong(1);
-    delay(4000);
-    roomba.playSong(2);
-    delay(3500);
-    roomba.playSong(3);
+    playLocateSong();
   } else if (cmd == "return_to_base") {
     DLOG("Returning to Base\n");
     roombaState.cleaning = true;
@@ -405,17 +424,6 @@ void setup() {
   Debug.setCallBackProjectCmds(debugCallback);
   Debug.setSerialEnabled(false);
   #endif
-
-  // Learn locate song
-  roomba.safeMode();
-  byte locateSong0[18] = {55, 32, 55, 32, 55, 32, 51, 24, 58, 8, 55, 32, 51, 24, 58, 8, 55, 64};
-  byte locateSong1[18] = {62, 32, 62, 32, 62, 32, 63, 24, 58, 8, 54, 32, 51, 24, 58, 8, 55, 64};
-  byte locateSong2[24] = {67, 32, 55, 24, 55, 8, 67, 32, 66, 24, 65, 8, 64, 8, 63, 8, 64, 16, 30, 16, 56, 16, 61, 32};
-  byte locateSong3[28] = {60, 24, 59, 8, 58, 8, 57, 8, 58, 16, 10, 16, 52, 16, 54, 32, 51, 24, 58, 8, 55, 32, 51, 24, 58, 8, 55, 64};
-  roomba.song(0, locateSong0, 18);
-  roomba.song(1, locateSong1, 18);
-  roomba.song(2, locateSong2, 24);
-  roomba.song(3, locateSong3, 28);
 
   roomba.start();
   delay(100);
