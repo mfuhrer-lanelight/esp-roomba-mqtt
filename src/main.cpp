@@ -82,13 +82,15 @@ uint8_t sensor_list[]={
     26
     };
 
-uint8_t sensor_list_1[]={
-  21,
-  24,
-  34,
 
-
-
+// structured list with sensorID, nBytes, sign (1=signed/0=unsigned)
+// sample entry: 
+// 21,2,1,
+// 24,3,0
+uint8_t sensor_list_1[]={ //beware: unverified list elements, samples only
+  21,1,0,
+  24,2,0,
+  23,2,1
 };
 
 
@@ -478,19 +480,47 @@ void verboseLogPacket(uint8_t *packet, uint8_t length)
 
 void readSensorPacket()
 {
-  uint8_t dest[2];
+  uint8_t dest[10];
   int i = 0;
 //  uint8_t packetLength;
-    for (i=0;i<sizeof(sensor_list);i++){
+    for (i = 0; i < sizeof(sensor_list); i += 3){
     DLOG("Request Sensor: %d\r\n", sensor_list[i]);
-    bool received = roomba.getSensors(sensor_list[i], dest, 2);
+    bool received = roomba.getSensors(sensor_list[i], dest, sensor_list[i+1]);
 // or
 //bool received = roomba.getSensors(22, dest, 2);
 
   if (received)
   {
   // DLOG("data: %d %d \r\n", dest[0], dest[1]);
-    DLOG("data: %d \r\n",  (255*dest[0] + dest[1]));
+    switch sensor_list[i+1]{
+      case 1:
+        if(dest[i+2]){      // signed parameter
+          DLOG("data: %d \r\n", dest[0]);
+        }
+        else{               // unsigned parameter
+          DLOG("data: %ud \r\n", dest[0]);
+        }
+        break;
+      case 2:
+        if(dest[i+2]){      // signed parameter
+          DLOG("data: %d \r\n",  (256*dest[0] + dest[1]));
+        }
+        else{               // unsigned parameter
+          DLOG("data: %ud \r\n",  (256*dest[0] + dest[1]));
+        }          
+        break;
+      case 3:
+        if(dest[i+2]){
+          DLOG("data: %d \r\n",  (65536*dest[0] + 256*dest[1] + dest[2]));
+        }
+        else{
+          DLOG("data: %ud \r\n",  (65536*dest[0] + 256*dest[1] + dest[2]));
+        }
+        break;
+      default:
+        DLOG("Unsupported format at: %d \r\n",  sensor_list[i]);
+        break;
+    }
   }
   else
   {
